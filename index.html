@@ -64,6 +64,9 @@ h2.screen{font-size:20px;margin:2px 0 3px;letter-spacing:-.01em;color:var(--grap
 .seg button{font-family:var(--sans);font-size:13px;font-weight:500;border:none;background:#fff;color:var(--graphite);padding:7px 13px;cursor:pointer;border-left:1px solid var(--line)}
 .seg button:first-child{border-left:none}
 .seg button[aria-pressed="true"]{background:var(--graphite);color:#fff}
+.rangesel{font-family:var(--sans);font-size:14px;color:var(--graphite);background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;max-width:62%}
+.rangesel:focus-visible{outline:3px solid var(--green-line);outline-offset:2px}
+#rangeField.hide{display:none!important}
 .btn{font-family:var(--sans);font-size:15px;font-weight:700;background:var(--graphite);color:#fff;border:none;border-radius:var(--r);padding:12px 20px;cursor:pointer;width:100%;margin-top:18px}
 .btn:hover{background:var(--graphite-deep)}
 .btn.slim{width:auto;padding:10px 18px;font-size:14px}
@@ -144,6 +147,7 @@ h2.screen{font-size:20px;margin:2px 0 3px;letter-spacing:-.01em;color:var(--grap
         <div class="seg" data-name="learnCount">
           <button data-v="10" aria-pressed="true">10</button>
           <button data-v="20">20</button>
+          <button data-v="30">30</button>
           <button data-v="50">50</button>
           <button data-v="0">Все</button>
         </div></div>
@@ -152,6 +156,8 @@ h2.screen{font-size:20px;margin:2px 0 3px;letter-spacing:-.01em;color:var(--grap
           <button data-v="seq" aria-pressed="true">По порядку</button>
           <button data-v="rnd">Случайно</button>
         </div></div>
+      <div class="field" id="rangeField"><label>Диапазон</label>
+        <select id="learnRange" class="rangesel"></select></div>
       <button class="btn" onclick="startLearn()">Начать обучение</button>
     </div>
     <div class="card">
@@ -257,6 +263,7 @@ function openDir(id){
   CUR=DIRECTIONS.find(d=>d.id===id); activeBank=CUR.bank;
   document.getElementById('dirName').textContent=CUR.name;
   document.getElementById('dirCount').textContent=activeBank.length;
+  updateRange();
   show('home');
 }
 
@@ -265,7 +272,23 @@ document.querySelectorAll('.seg').forEach(g=>g.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b)return;
   g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
   b.setAttribute('aria-pressed','true');
+  updateRange();
 }));
+function updateRange(){
+  const field=document.getElementById('rangeField'), sel=document.getElementById('learnRange');
+  if(!field||!sel) return;
+  const order=seg('learnOrder'), n=+seg('learnCount');
+  if(order==='seq' && n>0 && activeBank.length){
+    const sorted=[...activeBank].sort((a,b)=>a.n-b.n);
+    sel.innerHTML='';
+    for(let i=0;i<sorted.length;i+=n){
+      const chunk=sorted.slice(i,i+n), o=document.createElement('option');
+      o.value=i; o.textContent='№ '+chunk[0].n+'–'+chunk[chunk.length-1].n+' ('+chunk.length+')';
+      sel.appendChild(o);
+    }
+    field.classList.remove('hide');
+  } else field.classList.add('hide');
+}
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
 function pick(n,order){
@@ -277,7 +300,12 @@ function pick(n,order){
 }
 function startLearn(){
   const n=+seg('learnCount'),order=seg('learnOrder');
-  S={mode:'learn',idx:pick(n,order),pos:0,answers:{},checked:false};
+  let idx;
+  if(order==='seq' && n>0){
+    const start=+(document.getElementById('learnRange').value||0);
+    idx=activeBank.map((q,i)=>i).sort((a,b)=>activeBank[a].n-activeBank[b].n).slice(start,start+n);
+  } else idx=pick(n,order);
+  S={mode:'learn',idx,pos:0,answers:{},checked:false};
   enterSession('Обучение',false); renderQ();
 }
 function startExam(){
